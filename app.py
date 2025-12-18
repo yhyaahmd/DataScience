@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time
 
 from business_understanding import show_business_understanding
 from data_understanding import show_data_understanding
@@ -7,54 +8,61 @@ from data_preparation import prepare_data
 from modeling import run_regression
 from evaluasi import show_evaluation
 
+# =============================
+# PAGE CONFIG
+# =============================
 st.set_page_config(page_title="Prediksi Pertanian", layout="wide")
 
-# ============================= CSS GLOBAL POPPINS & CUSTOM COLORS =============================
+# =============================
+# CSS GLOBAL POPPINS
+# =============================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-    /* Mengubah font untuk semua elemen */
     html, body, [class*="css"], .stMarkdown, .stButton, .stSelectbox, .stHeader, p {
         font-family: 'Poppins', sans-serif !important;
     }
 
-    /* Styling khusus untuk Judul Utama */
     .main-title {
-        color: #2E7D32; /* Warna Hijau Daun */
+        color: #2E7D32;
         font-weight: 700;
         font-size: 42px;
         margin-bottom: 20px;
     }
 
-    /* Mempercantik Button di Sidebar */
     div.stButton > button {
-        font-family: 'Poppins', sans-serif;
         width: 100%;
         border-radius: 8px;
         transition: 0.3s;
     }
-    
-    /* Warna hover button agar senada dengan tema hijau */
+
     div.stButton > button:hover {
         border-color: #2E7D32;
         color: #2E7D32;
     }
 </style>
 """, unsafe_allow_html=True)
-# ==============================================================================
-
-# MENGGUNAKAN HTML UNTUK JUDUL BERWARNA HIJAU
-st.markdown("<h1 class=\"main-title\">Prediksi Hasil Pertanian (CRISP-DM)</h1>", unsafe_allow_html=True)
 
 # =============================
-# INIT SESSION STATE MENU
+# TITLE
+# =============================
+st.markdown(
+    "<h1 class='main-title'>Prediksi Hasil Pertanian (CRISP-DM)</h1>",
+    unsafe_allow_html=True
+)
+
+# =============================
+# SESSION STATE INIT
 # =============================
 if "menu" not in st.session_state:
     st.session_state.menu = "Business Understanding"
 
+if "is_training" not in st.session_state:
+    st.session_state.is_training = False
+
 # =============================
-# SIDEBAR BUTTONS
+# SIDEBAR MENU
 # =============================
 st.sidebar.title("Tahapan CRISP-DM")
 
@@ -73,7 +81,6 @@ if st.sidebar.button("Modeling", use_container_width=True):
 if st.sidebar.button("Evaluation", use_container_width=True):
     st.session_state.menu = "Evaluation"
 
-
 menu = st.session_state.menu
 
 # =============================
@@ -85,7 +92,11 @@ uploaded_file = st.sidebar.file_uploader(
 
 df = None
 if uploaded_file:
-    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
+    df = (
+        pd.read_csv(uploaded_file)
+        if uploaded_file.name.endswith(".csv")
+        else pd.read_excel(uploaded_file)
+    )
 
 # =============================
 # PAGE LOGIC
@@ -101,7 +112,10 @@ elif menu == "Data Understanding":
 
 elif menu == "Data Preparation":
     if df is not None:
-        df_ready = prepare_data(df)
+        with st.spinner("Menyiapkan data..."):
+            time.sleep(1)
+            df_ready = prepare_data(df)
+
         st.session_state["df_ready"] = df_ready
         st.success("Data siap dipakai 🚀")
     else:
@@ -116,10 +130,26 @@ elif menu == "Modeling":
             df_ready.select_dtypes(include="number").columns
         )
 
-        if st.button("Jalankan Regresi"):
-            result = run_regression(df_ready, target)
+        if st.button(
+            "Jalankan Regresi",
+            disabled=st.session_state.is_training
+        ):
+            st.session_state.is_training = True
+
+            with st.spinner("Sedang melatih model... 🧠"):
+                progress = st.progress(0)
+
+                # fake progress biar UX cakep
+                for i in range(100):
+                    time.sleep(0.02)
+                    progress.progress(i + 1)
+
+                result = run_regression(df_ready, target)
+
             st.session_state["result"] = result
+            st.session_state.is_training = False
             st.success("Model berhasil dilatih 🔥")
+
     else:
         st.warning("Lakukan Data Preparation dulu ⚙️")
 
